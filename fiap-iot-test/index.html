@@ -23,6 +23,10 @@
                     },
                     pannel: {
                         deviceMessage: null
+                    },
+                    form: {
+                        webSocketConnection: null,
+                        pairingCode: null
                     }
                 },
                 controller: {
@@ -41,6 +45,15 @@
                     app.model.button.registerPairingCode = document.getElementById('btnRegisterPairingCode');
 
                     app.model.pannel.deviceMessage = document.getElementById('deviceMessage');
+
+                    app.model.form.webSocketConnection = document.getElementById('frmWebSocketConnection');
+                    app.model.form.pairingCode = document.getElementById('frmPairingCode');
+                },
+                preventDefaults: () => {
+                    const {webSocketConnection, pairingCode} = app.model.form;
+
+                    webSocketConnection.addEventListener("submit", (event) => {event.preventDefault();});
+                    pairingCode.addEventListener("submit", (event) => {event.preventDefault();});
                 }
             };
 
@@ -182,10 +195,10 @@
         </style>
     </head>
     
-    <body onload="app.bind();">
+    <body onload="app.bind(); app.preventDefaults();">
         <h1>FIAP IoT Test</h1>
 
-        <form onsubmit="return false;">
+        <form id="frmWebSocketConnection" onsubmit="app.controller.ws.connect();">
             <h3>Connect to a websocket remote endpoint</h3>
 
             <div>
@@ -194,12 +207,12 @@
             </div>
 
             <div>
-                <button type="button" id="btnConnect" value="connect" onclick="app.controller.ws.connect()">Connect</button>
+                <button type="submit" id="btnConnect" value="connect">Connect</button>
                 <button type="button" id="btnDisconnect" value="disconnect" onclick="app.controller.ws.disconnect()" disabled>Disconnect</button>
             </div>
         </form>
 
-        <form>
+        <form id="frmPairingCode" onsubmit="app.controller.pairingCode.connect();">
             <h3>Register a remote device</h3>
 
             <div>
@@ -208,7 +221,7 @@
             </div>
 
             <div>
-                <button type="button" id="btnRegisterPairingCode" value="registerPairingCode" onclick="app.controller.pairingCode.connect()" disabled>Register A Pairing Code</button>
+                <button type="submit" id="btnRegisterPairingCode" value="registerPairingCode" disabled>Register A Pairing Code</button>
                 <button type="button" id="btnUnpair" value="unpair" disabled>Unpair</button>
             </div>
         </form>
