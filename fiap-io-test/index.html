@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+
+        <title>Jean Villete's | FIAP IoT Test</title>
+
+        <script type="text/javascript">
+            const WEBSOCKET_PROTOCOL = /^ws(s)?:\/\/.{5,}$/;
+            const PAIR_CODE = /^\d{4}$/;
+
+            const app = {
+                model: {
+                    ws: null,
+                    field: {
+                        webSocketEndpoint: null,
+                        pairingCode: null
+                    },
+                    button: {
+                        webSocketConnect: null,
+                        webSocketDisconnect: null,
+                        registerPairingCode: null
+                    },
+                    pannel: {
+                        deviceMessage: null
+                    }
+                },
+                controller: {
+                    ws: {},
+                    pairingCode: {},
+                    pannel: {
+                        deviceMessage: {}
+                    }
+                },
+                bind: () => {
+                    app.model.field.webSocketEndpoint = document.getElementById('webSocketEndpoint');
+                    app.model.field.pairingCode = document.getElementById('pairingCode');
+
+                    app.model.button.webSocketConnect = document.getElementById('btnConnect');
+                    app.model.button.webSocketDisconnect = document.getElementById('btnDisconnect');
+                    app.model.button.registerPairingCode = document.getElementById('btnRegisterPairingCode');
+
+                    app.model.pannel.deviceMessage = document.getElementById('deviceMessage');
+                }
+            };
+
+            app.controller.pannel.deviceMessage.print = (message) => {
+                const {deviceMessage} = app.model.pannel;
+
+                deviceMessage.innerHTML = "<p>" + message + "</p>";
+            };
+
+            app.controller.ws.connect = () => {
+                let {webSocketEndpoint} = app.model.field;
+
+                if (!webSocketEndpoint.value) {
+                    alert('Field \'WebSocket Endpoint\' is mandatory.');
+                    return;
+                } else if (!WEBSOCKET_PROTOCOL.test(webSocketEndpoint.value)) {
+                    alert('Field \'WebSocket Endpoint\' must be filled with a valid web socket protocol/endpoint.')
+                    return;
+                }
+
+                app.model.ws = new WebSocket(webSocketEndpoint.value);
+                
+                const {ws} = app.model;
+
+                ws.onmessage = (message) => {
+                    const {deviceMessage} = app.controller.pannel;
+                    const {data} = message;
+
+                    deviceMessage.print(data);
+                };
+
+                ws.onopen = () => {
+                    const {webSocketEndpoint, pairingCode} = app.model.field;
+                    const {webSocketConnect, webSocketDisconnect, registerPairingCode} = app.model.button;
+
+                    webSocketEndpoint.disabled = true;
+                    pairingCode.disabled = false;
+
+                    webSocketConnect.disabled = true;
+                    webSocketDisconnect.disabled = false;
+                    registerPairingCode.disabled = false;
+
+                    console.log("WebSocket Connected");
+                }
+
+                ws.onclose = () => {
+                    const {webSocketEndpoint, pairingCode} = app.model.field;
+                    const {webSocketConnect, webSocketDisconnect, registerPairingCode} = app.model.button;
+                    const {deviceMessage} = app.controller.pannel;
+
+                    webSocketEndpoint.disabled = false;
+
+                    pairingCode.value = "";
+                    pairingCode.disabled = true;
+
+                    webSocketConnect.disabled = false;
+                    webSocketDisconnect.disabled = true;
+                    registerPairingCode.disabled = true;
+                    
+                    deviceMessage.print("-- disconnected; no message available --");
+
+                    console.log("WebSocket Disconnected");
+                }
+            }
+
+            app.controller.ws.disconnect = () => {
+                const {ws} = app.model;
+
+                if (ws.readyState === WebSocket.OPEN) {
+                    ws.close();
+                }
+            }
+
+            app.controller.pairingCode.connect = () => {
+                const {pairingCode} = app.model.field;
+                const {registerPairingCode} = app.model.button;
+                const {ws} = app.model;
+
+                if (!pairingCode.value) {
+                    alert('Field \'Pairing Code\' is mandatory.');
+                    return;
+                } else if (!PAIR_CODE.test(pairingCode.value)) {
+                    alert('Field \'Pairing Code\' must be four digits.');
+                    return;
+                }
+
+                const registerWebPartyMessage = {
+                    action: "registerPairCode", 
+                    data: {
+                        pairCode: pairingCode.value, 
+                        partyType: "web"
+                    }
+                };
+                ws.send(
+                    JSON.stringify(
+                        registerWebPartyMessage
+                    )
+                );
+
+                const heartBeatMessage = { 
+                    action: "sendMessage", 
+                    data: { 
+                        pairCode: pairingCode.value,
+                        targetPartyType: "device", 
+                        message: { 
+                            heartBeat: "beat"
+                        } 
+                    } 
+                };
+                ws.send(
+                    JSON.stringify(
+                        heartBeatMessage
+                    )
+                );
+
+                registerPairingCode.disabled = true;
+                pairingCode.disabled = true;
+            }
+        </script>
+
+        <style>
+            form {
+                margin: 80px;
+            }
+
+            div {
+                margin: 5px;
+            }
+
+            label {
+                display: inline-block;
+                width: 200px;
+                text-align: right;
+            }
+
+            div.messages {
+                margin: 80px;
+            }
+        </style>
+    </head>
+    
+    <body onload="app.bind();">
+        <h1>FIAP IoT Test</h1>
+
+        <form onsubmit="return false;">
+            <h3>Connect to a websocket remote endpoint</h3>
+
+            <div>
+                <label>WebSocket Endpoint: </label>
+                <input type="text" id="webSocketEndpoint" name="webSocketEndpoint" placeholder="wss://uj09gm4nf8.execute-api.us-east-1.amazonaws.com/dev" size="75"/>
+            </div>
+
+            <div>
+                <button type="button" id="btnConnect" value="connect" onclick="app.controller.ws.connect()">Connect</button>
+                <button type="button" id="btnDisconnect" value="disconnect" onclick="app.controller.ws.disconnect()" disabled>Disconnect</button>
+            </div>
+        </form>
+
+        <form>
+            <h3>Register a remote device</h3>
+
+            <div>
+                <label>Pairing Code: </label>
+                <input type="text" id="pairingCode" name="pairingCode" size="20" maxlength="4" disabled/>
+            </div>
+
+            <div>
+                <button type="button" id="btnRegisterPairingCode" value="registerPairingCode" onclick="app.controller.pairingCode.connect()" disabled>Register A Pairing Code</button>
+                <button type="button" id="btnUnpair" value="unpair" disabled>Unpair</button>
+            </div>
+        </form>
+
+        <div class="messages">
+            <h3>Remote Device Messages;</h3>
+
+            <div id="deviceMessage">
+                <p>-- no message available --</p>
+            </div>
+        </div>
+    </body>
+</html>
