@@ -22,7 +22,8 @@
                         registerPairingCode: null
                     },
                     pannel: {
-                        deviceMessage: null
+                        deviceMessage: null,
+                        barRate: null
                     },
                     form: {
                         webSocketConnection: null,
@@ -33,10 +34,11 @@
                     ws: {},
                     pairingCode: {},
                     pannel: {
-                        deviceMessage: {}
+                        deviceMessage: {},
+                        barRate: {}
                     }
                 },
-                bind: () => {
+                binds: () => {
                     app.model.field.webSocketEndpoint = document.getElementById('webSocketEndpoint');
                     app.model.field.pairingCode = document.getElementById('pairingCode');
 
@@ -45,6 +47,7 @@
                     app.model.button.registerPairingCode = document.getElementById('btnRegisterPairingCode');
 
                     app.model.pannel.deviceMessage = document.getElementById('deviceMessage');
+                    app.model.pannel.barRate = document.getElementById('barRate');
 
                     app.model.form.webSocketConnection = document.getElementById('frmWebSocketConnection');
                     app.model.form.pairingCode = document.getElementById('frmPairingCode');
@@ -56,6 +59,22 @@
                     pairingCode.addEventListener("submit", (event) => {event.preventDefault();});
                 }
             };
+
+            app.controller.pannel.barRate.width = (width) => {
+                const {barRate} = app.model.pannel;
+
+                width = Math.trunc(width);
+
+                if (width < 0) {
+                    width = 0;
+                } else if (width > 100) {
+                    width = 100;
+                }
+
+                console.log("width; ", width);
+
+                barRate.style.width = width + "%";
+            }
 
             app.controller.pannel.deviceMessage.print = (message) => {
                 const {deviceMessage} = app.model.pannel;
@@ -79,10 +98,15 @@
                 const {ws} = app.model;
 
                 ws.onmessage = (message) => {
-                    const {deviceMessage} = app.controller.pannel;
+                    const {deviceMessage, barRate} = app.controller.pannel;
                     const {data} = message;
 
                     deviceMessage.print(data);
+
+                    const sensor = JSON.parse(data);
+                    const {value} = sensor.distance;
+
+                    barRate.width(value);
                 };
 
                 ws.onopen = () => {
@@ -192,10 +216,32 @@
             div.messages {
                 margin: 80px;
             }
+
+            div.bar {
+                border: solid darkgray;
+                width: 100%;
+
+                margin: 0px;
+            }
+
+            div.bar .background {
+                padding: 10px 0px;
+                background: lavender;
+                width: 100%;
+                margin: 0px;
+            }
+
+            div.bar .rate {
+                padding: 10px 0px;
+                background: indianred;
+                width: 0%;
+                float: left;
+                margin: 0px;
+            }
         </style>
     </head>
     
-    <body onload="app.bind(); app.preventDefaults();">
+    <body onload="app.binds(); app.preventDefaults();">
         <h1>FIAP IoT Test</h1>
 
         <form id="frmWebSocketConnection" onsubmit="app.controller.ws.connect();">
@@ -232,6 +278,13 @@
             <div id="deviceMessage">
                 <p>-- no message available --</p>
             </div>
+
+            <div class="bar">
+                <div id="barRate" class="rate"></div>
+                <div class="background"></div>
+            </div>
         </div>
+
+        
     </body>
 </html>
